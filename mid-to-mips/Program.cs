@@ -21,16 +21,28 @@ main:
 ";
 
 var tempoMap = midiFile.GetTempoMap();
-
 // For each notes
 foreach (var note in midiFile.GetNotes()) {
     // Get duration, note pitch and note channel
     var duration = note.LengthAs<MetricTimeSpan>(tempoMap);
     var noteNumber = note.NoteNumber;
     var channel = note.Channel;
+    var instrument = 0;
+    
+    // Get instrument
+    var time = note.TimeAs<MetricTimeSpan>(tempoMap);
+    foreach (var timedEvent in midiFile.GetTimedEvents().Where(e => e.Event is ProgramChangeEvent)) {
+        var programChangeTimeEvent = timedEvent.TimeAs<MetricTimeSpan>(tempoMap);
+        var controlChangeEvent = timedEvent.Event as ProgramChangeEvent;
+        
+        if (time.Milliseconds >= programChangeTimeEvent.Milliseconds) {
+            instrument = controlChangeEvent.ProgramNumber;
+            break;
+        }
+    }
 
     // Convert it to MIPS syscall
-    mipsOutput += noteToMips(noteNumber, channel, duration);
+    mipsOutput += noteToMips(noteNumber, channel, duration, instrument);
 }
 
 // Append the exit syscall
@@ -44,11 +56,12 @@ File.WriteAllText(outputPath, mipsOutput);
 
 
 // region: Functions
-string noteToMips(SevenBitNumber noteNumber, FourBitNumber channel, MetricTimeSpan duration) {
+string noteToMips(SevenBitNumber noteNumber, FourBitNumber channel, MetricTimeSpan duration, int instrument) {
     return @$"
         li $v0 33
         li $a0 {noteNumber}
         li $a1 {duration.Milliseconds}
+        li $a2 {instrument}
         li $a3 127
         syscall
 
