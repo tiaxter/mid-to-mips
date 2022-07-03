@@ -1,8 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-using Melanchall.DryWetMidi.Common;
-using Melanchall.DryWetMidi.Core;
-using Melanchall.DryWetMidi.Interaction;
+using mid_to_mips;
 
 // Get command line args
 var commandLineArgs = Environment.GetCommandLineArgs();
@@ -11,65 +9,14 @@ commandLineHandler();
 // Get input and output file
 var inputPath = commandLineArgs[2];
 var outputPath = commandLineArgs[3];
-var midiFile = MidiFile.Read(inputPath);
-
-// Prepare MIPS program
-var mipsOutput = @".text
-.globl main
-
-main:
-";
-
-var tempoMap = midiFile.GetTempoMap();
-// For each notes
-foreach (var note in midiFile.GetNotes()) {
-    // Get duration, note pitch and note channel
-    var duration = note.LengthAs<MetricTimeSpan>(tempoMap);
-    var noteNumber = note.NoteNumber;
-    var channel = note.Channel;
-    var instrument = 0;
-    
-    // Get instrument
-    var time = note.TimeAs<MetricTimeSpan>(tempoMap);
-    foreach (var timedEvent in midiFile.GetTimedEvents().Where(e => e.Event is ProgramChangeEvent)) {
-        var programChangeTimeEvent = timedEvent.TimeAs<MetricTimeSpan>(tempoMap);
-        var controlChangeEvent = timedEvent.Event as ProgramChangeEvent;
-        
-        if (time.Milliseconds >= programChangeTimeEvent.Milliseconds) {
-            instrument = controlChangeEvent.ProgramNumber;
-            break;
-        }
-    }
-
-    // Convert it to MIPS syscall
-    mipsOutput += noteToMips(noteNumber, channel, duration, instrument);
-}
-
-// Append the exit syscall
-mipsOutput += @"
-        # exit
-        li $v0 10
-        syscall
-";
-
+// Convert midi to mips
+var mipsOutput = new MidMips(inputPath).ToMips();
+// Write the mips content
 File.WriteAllText(outputPath, mipsOutput);
 
-
 // region: Functions
-string noteToMips(SevenBitNumber noteNumber, FourBitNumber channel, MetricTimeSpan duration, int instrument) {
-    return @$"
-        li $v0 33
-        li $a0 {noteNumber}
-        li $a1 {duration.Milliseconds}
-        li $a2 {instrument}
-        li $a3 127
-        syscall
-
-    ";
-}
-
 void commandLineHandler() {
-    var helpMessage = "usage: mid-to-mips [options] input_file output_file\noptions:\n-i, --input     Specify input file";
+    const string helpMessage = "usage: mid-to-mips [options] input_file output_file\noptions:\n-i, --input     Specify input file";
 
     if (commandLineArgs.Length == 4 && (commandLineArgs[1] == "-i" || commandLineArgs[1] == "--input")) {
         return;
