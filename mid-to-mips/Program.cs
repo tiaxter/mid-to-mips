@@ -4,7 +4,7 @@ using mid_to_mips;
 
 // Get command line args
 var commandLineArgs = Environment.GetCommandLineArgs();
-commandLineHandler();
+CommandLineHandler();
 
 // Get input and output file
 var inputPath = commandLineArgs[2];
@@ -15,7 +15,7 @@ var mipsOutput = new MidMips(inputPath).ToMips();
 File.WriteAllText(outputPath, mipsOutput);
 
 // region: Functions
-void commandLineHandler() {
+void CommandLineHandler() {
     const string helpMessage = "usage: mid-to-mips [options] input_file output_file\noptions:\n-i, --input     Specify input file";
 
     if (commandLineArgs.Length == 4 && (commandLineArgs[1] == "-i" || commandLineArgs[1] == "--input")) {
