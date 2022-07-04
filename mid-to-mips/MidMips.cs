@@ -25,19 +25,21 @@ public class MidMips {
         
         foreach (var note in midiNotes) {
             // Get note info
-            var noteDuration = note.LengthAs<MetricTimeSpan>(tempoMap).Milliseconds;
+            var noteDuration = (int) note.LengthAs<MetricTimeSpan>(tempoMap).TotalMilliseconds;
             var notePitch = note.NoteNumber;
+            var noteName = note.NoteName.ToString().Replace("Sharp", "#");
             var startTime = (int) note.GetTimedNoteOnEvent().TimeAs<MetricTimeSpan>(tempoMap).TotalMilliseconds;
             var endTime = (int) note.GetTimedNoteOffEvent().TimeAs<MetricTimeSpan>(tempoMap).TotalMilliseconds;
 
             int? delay;
             if (lastPlayedNote != null && (delay = startTime - lastPlayedNote) > 0) {
-                mipsOutput += $"\n\tli $v0 32\n\tli $a0 {delay}\n";
+                var delayToSeconds = TimeSpan.FromMilliseconds((double) delay).TotalSeconds;
+                mipsOutput += $"\n\t# Sleep for {delayToSeconds} seconds\n\tli $v0 32\n\tli $a0 {delay}\n";
             }
 
             lastPlayedNote = endTime;
             
-            mipsOutput += $"\n\tli $v0 33\n\tli $a0 {notePitch}\n\tli $a1 {noteDuration}\n\tli $a3 127\n\tsyscall\n";
+            mipsOutput += $"\n\t# Note {noteName}\n\tli $v0 33\n\tli $a0 {notePitch}\n\tli $a1 {noteDuration}\n\tli $a3 127\n\tsyscall\n";
         }
 
         // Append the exit syscall
